@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 )
@@ -91,21 +92,36 @@ func doCommand(command string) error {
 	return nil
 }
 
+func commandLoop() error {
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		fmt.Print("--> ")
+		line := scanner.Text()
+		err := doCommand(line)
+		if err != nil {
+			//fmt.Printf("ERROR: %v \n", err)
+			//err = nil
+			return fmt.Errorf("in do command loop: %v", err)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		//fmt.Fprintln(os.Stderr, "Reading standard input:", err)
+		return fmt.Errorf("in main command loop: %v", err)
+	}
+	return nil
+}
+
 func main() {
+	// use time and origin file for log prefixes
+	log.SetFlags(log.Ltime | log.Lshortfile)
 	initialize()
+	if err := commandLoop(); err != nil {
+		log.Fatalf("%v", err)
+	}
 
 	fmt.Println("WELCOME TO THE DUNGEON")
 	fmt.Println("Enter: ") //Ask for input here?
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		line := scanner.Text()
-		err := doCommand(line)
-		if err != nil {
-			fmt.Printf("ERROR: %v \n", err)
-			err = nil
-		}
-	}
 	//	var command string
 	//	var target string
 	//	//split input into individual words by white space.
@@ -130,7 +146,5 @@ func main() {
 	//	fmt.Fprint(os.Stdout, "--> ", scanner.Text(), "\n") //remove when finished.
 	//
 	// 	}
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "Reading standard input:", err)
-	}
+
 }
