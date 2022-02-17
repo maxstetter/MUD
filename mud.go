@@ -27,9 +27,9 @@ func addCommand(command string, action func(string)) {
 
 func doLook(direction string) {
 	if direction == "" {
-		fmt.Fprintf(os.Stdout, "what are you even looking at??\n")
+		fmt.Fprintf(os.Stdout, "What are you even looking at??\n")
 	} else {
-		fmt.Fprintf(os.Stdout, "looked %s\n", direction)
+		fmt.Fprintf(os.Stdout, "You looked %s\n", direction)
 	}
 }
 
@@ -39,6 +39,26 @@ func doLaugh(how string) {
 	} else if how == "maniacally" {
 		fmt.Fprintf(os.Stdout, "HAHAHAHA\n")
 	}
+}
+
+func doSmile(s string) {
+	fmt.Printf("You smile happily.\n")
+}
+
+func doSouth(s string) {
+	fmt.Printf("You move south.\n")
+}
+
+func doNorth(s string) {
+	fmt.Printf("You move north.\n")
+}
+
+func doEast(s string) {
+	fmt.Printf("You move east.\n")
+}
+
+func doWest(s string) {
+	fmt.Printf("You move west.\n")
 }
 
 //not implemented yet
@@ -71,17 +91,20 @@ func DetermineCommand(input string) string {
 func initialize() {
 	addCommand("look", doLook)
 	addCommand("laugh", doLaugh)
+	addCommand("smile", doSmile)
+	addCommand("south", doSouth)
+	addCommand("north", doNorth)
+	addCommand("east", doEast)
+	addCommand("west", doWest)
 }
 
 func doCommand(command string) error {
 	input := strings.Fields(command)
 	target := ""
-	//var target []string
 	if len(input) == 0 {
 		return errors.New("empty input, try again")
 	} else if len(input) >= 2 {
 		command = input[0]
-		//target = input[1:]
 		for i := 1; i < len(input); i++ {
 			if i == len(input)-1 {
 				target += input[i]
@@ -91,10 +114,10 @@ func doCommand(command string) error {
 		}
 	}
 
-	if function, ok := Commands[command]; ok {
+	if function, exists := Commands[strings.ToLower(command)]; exists {
 		function(target)
 	} else {
-		return errors.New("that command was not found, try another")
+		fmt.Printf("You said wut?\n")
 	}
 	return nil
 }
@@ -106,9 +129,8 @@ func commandLoop() error {
 		line := scanner.Text()
 		err := doCommand(line)
 		if err != nil {
-			//fmt.Printf("ERROR: %v \n", err)
-			//err = nil
-			return fmt.Errorf("in do command loop: %v", err)
+			fmt.Printf("ERROR: %v \n", err)
+			err = nil
 		}
 	}
 	if err := scanner.Err(); err != nil {
