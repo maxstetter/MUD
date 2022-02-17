@@ -14,7 +14,14 @@ var Commands = make(map[string]func(string))
 
 //END GLOBAL//
 
-func AddCommand(command string, action func(string)) {
+func addCommand(command string, action func(string)) {
+	for i := range command {
+		if i == 0 {
+			continue
+		}
+		prefix := command[:i]
+		Commands[prefix] = action
+	}
 	Commands[command] = action
 }
 
@@ -62,8 +69,8 @@ func DetermineCommand(input string) string {
 
 //initialize the commands
 func initialize() {
-	AddCommand("look", doLook)
-	AddCommand("laugh", doLaugh)
+	addCommand("look", doLook)
+	addCommand("laugh", doLaugh)
 }
 
 func doCommand(command string) error {
@@ -112,15 +119,14 @@ func commandLoop() error {
 }
 
 func main() {
+	fmt.Println("WELCOME TO THE DUNGEON")
+	fmt.Println("Enter: ") //Ask for input here?
 	// use time and origin file for log prefixes
 	log.SetFlags(log.Ltime | log.Lshortfile)
 	initialize()
 	if err := commandLoop(); err != nil {
 		log.Fatalf("%v", err)
 	}
-
-	fmt.Println("WELCOME TO THE DUNGEON")
-	fmt.Println("Enter: ") //Ask for input here?
 
 	//	var command string
 	//	var target string
