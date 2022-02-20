@@ -20,6 +20,8 @@ var Directions = make(map[string]int)
 var player = Player{}
 var db *sql.DB
 
+//END GLOBAL//
+
 type Zone struct {
 	ID    int
 	Name  string
@@ -43,8 +45,19 @@ type Player struct {
 	Room *Room
 }
 
-//END GLOBAL//
+/// DATA BASE ///
 
+func openWorld() {
+	path := "world.db"
+	options := "?" + "_busy_timeout=10000" +
+		"&" + "_foreign_keys=ON"
+	db, err := sql.Open("sqlite3", path+options)
+	if err != nil {
+		// handle the error here
+	}
+}
+
+// END DATA BASE //
 func addCommand(command string, action func(string)) {
 	for i := range command {
 		if i == 0 {
