@@ -12,7 +12,7 @@ import (
 
 ////GLOBAL////
 var Commands = make(map[string]func(string))
-
+var DB
 //END GLOBAL//
 
 type Zone struct {
