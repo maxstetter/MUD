@@ -1,5 +1,4 @@
 package main
-
 import (
 	"bufio"
 	"errors"
@@ -7,6 +6,8 @@ import (
 	"log"
 	"os"
 	"strings"
+	"database/sql"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 ////GLOBAL////
@@ -14,6 +15,37 @@ var Commands = make(map[string]func(string))
 
 //END GLOBAL//
 
+type Zone struct {
+	ID int
+	Name string
+	Rooms []*Room
+}
+
+type Room struct{
+	ID int
+	Zone *Zone
+	Name string
+	Description string
+	Exits [6]Exit
+}
+
+type Exit struct{
+	To *Room
+	Description string
+}
+/// DATA BASE ///
+
+func openWorld(){
+	path := "world.db"
+	options := "?" + "_busy_timeout=10000" +
+		"&" + "_foreign_keys=ON"
+	db, err := sql.Open("sqlite3", path+options)
+	if err != nil {
+		// handle the error here
+	}   
+}
+
+// END DATA BASE //
 func addCommand(command string, action func(string)) {
 	for i := range command {
 		if i == 0 {
