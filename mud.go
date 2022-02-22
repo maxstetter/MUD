@@ -17,8 +17,6 @@ var Commands = make(map[string]func(string))
 var Zones = make(map[int]*Zone)
 var Rooms = make(map[int]*Room)
 var Directions = make(map[string]int)
-var player = Player{}
-var db *sql.DB
 
 //END GLOBAL//
 
@@ -173,7 +171,7 @@ func commandLoop() error {
 }
 
 //This function opens the database, reads a single room and stores the ID, Name and Descriptions fields in a Room object, prints this object out
-func readRooms(db *sql.DB) error {
+func readSingleRoom(db *sql.DB) error {
 	//select id, zone_id, name, description from rooms where id = 3001;
 	rows, err := db.Query("SELECT id, name, description FROM rooms where ID = 3001")
 	if err != nil {
@@ -195,11 +193,11 @@ func readRooms(db *sql.DB) error {
 }
 
 //readZones() function reads all of the zones. Collects all of the zones into a map where the keys are zone IDs and the values are Zone pointers. Prints them all out.
-func readZones(stmt *sql.Stmt) error {
+func readZones(stmt *sql.Stmt) (map[int]*Zone, error) {
 	//rows, err := db.Query("SELECT * FROM zones")
 	rows, err := stmt.Query()
 	if err != nil {
-		return fmt.Errorf("querying zones from database: %v", err)
+		return nil, fmt.Errorf("querying zones from database: %v", err)
 	}
 
 	for rows.Next() {
@@ -207,14 +205,37 @@ func readZones(stmt *sql.Stmt) error {
 		var name string
 		var rooms []*Room
 		if err := rows.Scan(&id, &name); err != nil {
-			return fmt.Errorf("reading zones from database: %v", err)
+			return nil, fmt.Errorf("reading zones from database: %v", err)
 		}
 		zone := Zone{id, name, rooms}
 		fmt.Println(zone)
 		Zones[id] = &zone
 	}
-	fmt.Println(Zones)
-	return nil
+	for key, value := range Zones {
+		fmt.Println("zoneID:", key, " ", *value)
+	}
+	return Zones, nil
+}
+
+//The readRooms function reads in all of the rooms. It accepts an open transaction as a paramter and returns a map from IDs to Room pointers. In addition, have it accept the map of zones as a parameter. When you get a zone ID from the database, use it to find the corresponding Zone pointer and store it in the Room object.
+func readRooms(stmt *sql.Stmt, ZoneMap map[int]*Zone) (map[int]*Room, error) {
+	rows, err := stmt.Query()
+	if err != nil {
+		return nil, fmt.Errorf("querying rooms from database: %v", err)
+	}
+	for rows.Next() {
+		var room_id, zone_id int
+		var name, description string
+		var exits [6]Exit
+		if err := rows.Scan(&room_id, &zone_id, &name, &description); err != nil {
+			return nil, fmt.Errorf("reading rooms from database: %v", err)
+		}
+		zonePointer := ZoneMap[zone_id]
+		room := Room{room_id, zonePointer, name, description, exits}
+		Rooms[room_id] = &room
+		ZoneMap[zone_id].Rooms = []*Room{&room}
+	}
+	return Rooms, nil
 }
 
 func main() {
@@ -235,18 +256,23 @@ func main() {
 	}
 	defer db.Close()
 
+	if e := readSingleRoom(db); e != nil {
+		log.Fatalf("readSingleRoom: %v", e)
+	}
+
 	tx, err := db.Begin()
 	if err != nil {
-		log.Fatalf("begin room read transaction: %v", err)
+		log.Fatalf("begin zones read transaction: %v", err)
 	}
-	stmt, err := tx.Prepare(`SELECT * FROM rooms`)
+	stmt, err := tx.Prepare(`SELECT * FROM zones`)
 	if err != nil {
 		log.Fatalf("prepare room read transaction: %v", err)
 	}
 	defer stmt.Close()
 
-	if e := readRooms(db); e != nil {
-		log.Fatalf("readRooms: %v", e)
+	zoneMap, e := readZones(stmt)
+	if e != nil {
+		log.Fatalf("readZones: %v", e)
 		tx.Rollback()
 	} else {
 		tx.Commit()
@@ -254,20 +280,21 @@ func main() {
 
 	tx, err = db.Begin()
 	if err != nil {
-		log.Fatalf("begin zones read transaction: %v", err)
+		log.Fatalf("begin room read transaction: %v", err)
 	}
-	stmt, err = tx.Prepare(`SELECT * FROM zones`)
+	stmt, err = tx.Prepare(`SELECT * FROM rooms`)
 	if err != nil {
 		log.Fatalf("prepare room read transaction: %v", err)
 	}
 	defer stmt.Close()
 
-	if e := readZones(stmt); e != nil {
-		log.Fatalf("readZones: %v", e)
+	if _, e := readRooms(stmt, zoneMap); e != nil {
+		log.Fatalf("readRooms: %v", e)
 		tx.Rollback()
 	} else {
 		tx.Commit()
 	}
+
 	fmt.Println("WELCOME TO THE DUNGEON")
 	fmt.Println("Enter: ") //Ask for input here?
 	// use time and origin file for log prefixes
