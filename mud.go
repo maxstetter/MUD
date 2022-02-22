@@ -45,19 +45,6 @@ type Player struct {
 	Room *Room
 }
 
-/// DATA BASE ///
-
-func openWorld() {
-	path := "world.db"
-	options := "?" + "_busy_timeout=10000" +
-		"&" + "_foreign_keys=ON"
-	db, err := sql.Open("sqlite3", path+options)
-	if err != nil {
-		// handle the error here
-	}
-}
-
-// END DATA BASE //
 func addCommand(command string, action func(string)) {
 	for i := range command {
 		if i == 0 {
@@ -185,7 +172,7 @@ func commandLoop() error {
 	return nil
 }
 
-//This function opens the database, reads a single and stoes the ID, Name and Descriptions fields in a Room object, prints this object out
+//This function opens the database, reads a single room and stores the ID, Name and Descriptions fields in a Room object, prints this object out
 func readRooms(db *sql.DB) error {
 	//select id, zone_id, name, description from rooms where id = 3001;
 	rows, err := db.Query("SELECT id, name, description FROM rooms where ID = 3001")
@@ -204,6 +191,28 @@ func readRooms(db *sql.DB) error {
 		fmt.Println(room)
 	}
 
+	return nil
+}
+
+//readZones() function reads all of the zones. Collects all of the zones into a map where the keys are zone IDs and the values are Zone pointers. Prints them all out.
+func readZones(db *sql.DB) error {
+	rows, err := db.Query("SELECT * FROM zones")
+	if err != nil {
+		return fmt.Errorf("querying zones from database: %v", err)
+	}
+
+	for rows.Next() {
+		var id int
+		var name string
+		var rooms []*Room
+		if err := rows.Scan(&id, &name); err != nil {
+			return fmt.Errorf("reading zones from database: %v", err)
+		}
+		zone := Zone{id, name, rooms}
+		fmt.Println(zone)
+		Zones[id] = &zone
+	}
+	fmt.Println(Zones)
 	return nil
 }
 
@@ -236,6 +245,14 @@ func main() {
 	defer stmt.Close()
 
 	e := readRooms(db)
+	if e != nil {
+		log.Fatalf("prepare room read transaction: %v", e)
+		fmt.Println("error?")
+		tx.Rollback()
+	} else {
+		tx.Commit()
+	}
+	e = readZones(db)
 	if e != nil {
 		log.Fatalf("prepare room read transaction: %v", e)
 		fmt.Println("error?")
