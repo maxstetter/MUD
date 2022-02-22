@@ -195,8 +195,9 @@ func readRooms(db *sql.DB) error {
 }
 
 //readZones() function reads all of the zones. Collects all of the zones into a map where the keys are zone IDs and the values are Zone pointers. Prints them all out.
-func readZones(db *sql.DB) error {
-	rows, err := db.Query("SELECT * FROM zones")
+func readZones(stmt *sql.Stmt) error {
+	//rows, err := db.Query("SELECT * FROM zones")
+	rows, err := stmt.Query()
 	if err != nil {
 		return fmt.Errorf("querying zones from database: %v", err)
 	}
@@ -244,18 +245,25 @@ func main() {
 	}
 	defer stmt.Close()
 
-	e := readRooms(db)
-	if e != nil {
-		log.Fatalf("prepare room read transaction: %v", e)
-		fmt.Println("error?")
+	if e := readRooms(db); e != nil {
+		log.Fatalf("readRooms: %v", e)
 		tx.Rollback()
 	} else {
 		tx.Commit()
 	}
-	e = readZones(db)
-	if e != nil {
-		log.Fatalf("prepare room read transaction: %v", e)
-		fmt.Println("error?")
+
+	tx, err = db.Begin()
+	if err != nil {
+		log.Fatalf("begin zones read transaction: %v", err)
+	}
+	stmt, err = tx.Prepare(`SELECT * FROM zones`)
+	if err != nil {
+		log.Fatalf("prepare room read transaction: %v", err)
+	}
+	defer stmt.Close()
+
+	if e := readZones(stmt); e != nil {
+		log.Fatalf("readZones: %v", e)
 		tx.Rollback()
 	} else {
 		tx.Commit()
