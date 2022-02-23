@@ -17,6 +17,7 @@ var Commands = make(map[string]func(string))
 var Zones = make(map[int]*Zone)
 var Rooms = make(map[int]*Room)
 var Directions = make(map[string]int)
+var mPlayer = Player{}
 
 //END GLOBAL//
 
@@ -79,7 +80,13 @@ func doSouth(s string) {
 }
 
 func doNorth(s string) {
-	fmt.Printf("You move north.\n")
+	if len(mPlayer.Room.Exits[0].Description) == 0 {
+		fmt.Println("Illegal move")
+	} else {
+		mPlayer.Room = mPlayer.Room.Exits[0].To
+		fmt.Printf("You move north.\n")
+		fmt.Println(mPlayer.Room.Description)
+	}
 }
 
 func doEast(s string) {
@@ -90,30 +97,10 @@ func doWest(s string) {
 	fmt.Printf("You move west.\n")
 }
 
-//not implemented yet
-func DetermineCommand(input string) string {
-	var command string
-	switch {
-	case input == "":
-		command = ""
-		return command
-	case input == "":
-		command = ""
-		return command
-	case input == "":
-		command = ""
-		return command
-	case input == "":
-		command = ""
-		return command
-	case input == "":
-		command = ""
-		return command
-	case input == "":
-		command = ""
-		return command
-	}
-	return "asdf"
+func doRecall(s string) {
+	mPlayer.Room = Rooms[3001]
+	fmt.Printf("You return to the beginning")
+	fmt.Printf(mPlayer.Room.Description)
 }
 
 //initialize the commands
@@ -125,6 +112,7 @@ func initialize() {
 	addCommand("north", doNorth)
 	addCommand("east", doEast)
 	addCommand("west", doWest)
+	addCommand("recall", doRecall)
 	//up, down, say, tell, shout, pretty call?
 }
 
@@ -232,20 +220,53 @@ func readRooms(stmt *sql.Stmt, ZoneMap map[int]*Zone) (map[int]*Room, error) {
 		}
 		zonePointer := ZoneMap[zone_id]
 		room := Room{room_id, zonePointer, name, description, exits}
+		fmt.Println(room)
 		Rooms[room_id] = &room
 		ZoneMap[zone_id].Rooms = []*Room{&room}
 	}
 	return Rooms, nil
 }
 
-func main() {
-	//	Directions["n"] = 0
-	//	Directions["e"] = 1
-	//	Directions["s"] = 2
-	//	Directions["w"] = 3
-	//	Directions["u"] = 4
-	//	Directions["d"] = 5
+//The readExits() function reads in all of the exits, finds the room it leaves from and fills in the corresponding exit field of the room.``
+func readExits(stmt *sql.Stmt) error {
+	rows, err := stmt.Query()
+	if err != nil {
+		return fmt.Errorf("querying exits from database: %v", err)
+	}
+	for rows.Next() {
+		var fromRoomId, toRoomId int
+		var direction, description string
+		if err := rows.Scan(&fromRoomId, &toRoomId, &direction, &description); err != nil {
+			return fmt.Errorf("reading exits from database: %v", err)
+		}
+		exit := Exit{Rooms[toRoomId], description}
+		Rooms[fromRoomId].Exits[Directions[direction]] = exit
+	}
+	return nil
+}
 
+func printRooms() {
+	for key, _ := range Rooms {
+		fmt.Println(Rooms[key].Name)
+		fmt.Println(Rooms[key].Description)
+		fmt.Println(Rooms[key].Exits)
+		for dir, val := range Rooms[key].Exits {
+			fmt.Println("dir: ", dir, " val: ", val)
+		}
+	}
+}
+
+func main() {
+	Directions["n"] = 0
+	Directions["e"] = 1
+	Directions["s"] = 2
+	Directions["w"] = 3
+	Directions["u"] = 4
+	Directions["d"] = 5
+
+	// use time and origin file for log prefixes
+	log.SetFlags(log.Ltime | log.Lshortfile)
+	initialize()
 	// the path to the database--this could be an absolute path
 	path := "world.db"
 	options := "?" + "_busy_timeout=10000" +
@@ -295,38 +316,28 @@ func main() {
 		tx.Commit()
 	}
 
+	tx, err = db.Begin()
+	if err != nil {
+		log.Fatalf("begin exit read transaction: %v", err)
+	}
+	stmt, err = tx.Prepare(`SELECT * FROM exits`)
+	if err != nil {
+		log.Fatalf("prepare exit read transaction: %v", err)
+	}
+	defer stmt.Close()
+
+	if err := readExits(stmt); err != nil {
+		log.Fatalf("readExits: %v", err)
+		tx.Rollback()
+	} else {
+		tx.Commit()
+	}
+
+	printRooms()
+
 	fmt.Println("WELCOME TO THE DUNGEON")
-	fmt.Println("Enter: ") //Ask for input here?
-	// use time and origin file for log prefixes
-	log.SetFlags(log.Ltime | log.Lshortfile)
-	initialize()
+	fmt.Println("Enter: ")
 	if err := commandLoop(); err != nil {
 		log.Fatalf("%v", err)
 	}
-
-	//	var command string
-	//	var target string
-	//	//split input into individual words by white space.
-	//	input := strings.Fields(scanner.Text())
-	//	if len(input) == 0 {
-	//		fmt.Fprint(os.Stdout, "Empty input. Try again.\n")
-	//		fmt.Println("Enter: ")
-	//	} else if len(input) >= 2 {
-	//		command = input[0]
-	//		target = input[1]
-	//		fmt.Fprint(os.Stdout, "Command = ", command, "\n")
-	//		fmt.Fprint(os.Stdout, "Target = ", target, "\n")
-	//	} else {
-	//		command = input[0]
-	//		fmt.Fprint(os.Stdout, "Command = ", command, "\n")
-	//	}
-	//	//TODO: handle say command and implement command shortcuts.
-	//	if function, ok := Commands[command]; ok {
-	//		function(target)
-	//	}
-	//	//prints input.
-	//	fmt.Fprint(os.Stdout, "--> ", scanner.Text(), "\n") //remove when finished.
-	//
-	// 	}
-
 }
