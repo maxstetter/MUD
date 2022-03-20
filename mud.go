@@ -13,16 +13,17 @@ import (
 )
 
 ////GLOBAL////
-var Commands = make(map[string]func(string))
+var Commands = make(map[string]func(string, *Player))
 var Zones = make(map[int]*Zone)
 var Rooms = make(map[int]*Room)
 var Directions = make(map[string]int)
-var mPlayer = Player{}
+
+//var mPlayer = Player{}
 var DirectionLabels = map[int]string{
 	0: "n",
 	1: "e",
-	2: "w",
-	3: "s",
+	2: "s",
+	3: "w",
 	4: "u",
 	5: "d",
 }
@@ -52,7 +53,7 @@ type Player struct {
 	Room *Room
 }
 
-func addCommand(command string, action func(string)) {
+func addCommand(command string, action func(string, *Player)) {
 	for i := range command {
 		if i == 0 {
 			continue
@@ -63,21 +64,25 @@ func addCommand(command string, action func(string)) {
 	Commands[command] = action
 }
 
-func doLook(direction string) {
+func doLook(direction string, p *Player) {
 	if direction == "" {
 		//fmt.Fprintf(os.Stdout, "What are you even looking at??\n")
-		for dir, val := range mPlayer.Room.Exits {
+		for dir, val := range p.Room.Exits {
 			if val.Description != "" {
 				fmt.Println(DirectionLabels[dir], val.Description)
 			}
 		}
 	} else {
 		fmt.Fprintf(os.Stdout, "You looked %s\n", direction)
-		fmt.Println(mPlayer.Room.Exits[Directions[direction]].Description)
+		if p.Room.Exits[Directions[direction]].Description == "" {
+			fmt.Println("There is nothing to look at in this direction")
+		} else {
+			fmt.Println(p.Room.Exits[Directions[direction]].Description)
+		}
 	}
 }
 
-func doLaugh(how string) {
+func doLaugh(how string, p *Player) {
 	if how == "" {
 		fmt.Fprintf(os.Stdout, "hahaha\n")
 	} else if how == "maniacally" {
@@ -85,36 +90,72 @@ func doLaugh(how string) {
 	}
 }
 
-func doSmile(s string) {
+func doSmile(s string, p *Player) {
 	fmt.Printf("You smile happily.\n")
 }
 
-func doSouth(s string) {
-	fmt.Printf("You move south.\n")
-}
-
-func doNorth(s string) {
-	if len(mPlayer.Room.Exits[0].Description) == 0 {
+func doSouth(s string, p *Player) {
+	if len(p.Room.Exits[2].Description) == 0 {
 		fmt.Println("Illegal move")
 	} else {
-		mPlayer.Room = mPlayer.Room.Exits[0].To
-		fmt.Printf("You move north.\n")
-		fmt.Println(mPlayer.Room.Description)
+		p.Room = p.Room.Exits[2].To
+		fmt.Printf("You move south.\n")
+		fmt.Println(p.Room.Description)
 	}
 }
 
-func doEast(s string) {
-	fmt.Printf("You move east.\n")
+func doNorth(s string, p *Player) {
+	if len(p.Room.Exits[0].Description) == 0 {
+		fmt.Println("Illegal move")
+	} else {
+		p.Room = p.Room.Exits[0].To
+		fmt.Printf("You move north.\n")
+		fmt.Println(p.Room.Description)
+	}
 }
 
-func doWest(s string) {
-	fmt.Printf("You move west.\n")
+func doEast(s string, p *Player) {
+	if len(p.Room.Exits[1].Description) == 0 {
+		fmt.Println("Illegal move")
+	} else {
+		p.Room = p.Room.Exits[1].To
+		fmt.Printf("You move east.\n")
+		fmt.Println(p.Room.Description)
+	}
 }
 
-func doRecall(s string) {
-	mPlayer.Room = Rooms[3001]
-	fmt.Printf("You return to the beginning")
-	fmt.Printf(mPlayer.Room.Description)
+func doWest(s string, p *Player) {
+	if len(p.Room.Exits[3].Description) == 0 {
+		fmt.Println("Illegal move")
+	} else {
+		p.Room = p.Room.Exits[3].To
+		fmt.Printf("You move west.\n")
+		fmt.Println(p.Room.Description)
+	}
+}
+func doUp(s string, p *Player) {
+	if len(p.Room.Exits[4].Description) == 0 {
+		fmt.Println("Illegal move")
+	} else {
+		p.Room = p.Room.Exits[4].To
+		fmt.Printf("You move up.\n")
+		fmt.Println(p.Room.Description)
+	}
+}
+func doDown(s string, p *Player) {
+	if len(p.Room.Exits[5].Description) == 0 {
+		fmt.Println("Illegal move")
+	} else {
+		p.Room = p.Room.Exits[5].To
+		fmt.Printf("You move down.\n")
+		fmt.Println(p.Room.Description)
+	}
+}
+
+func doRecall(s string, p *Player) {
+	p.Room = Rooms[3001]
+	fmt.Printf("You return to the beginning\n")
+	fmt.Printf(p.Room.Description)
 }
 
 //initialize the commands
@@ -127,10 +168,12 @@ func initialize() {
 	addCommand("east", doEast)
 	addCommand("west", doWest)
 	addCommand("recall", doRecall)
+	addCommand("up", doUp)
+	addCommand("down", doDown)
 	//up, down, say, tell, shout, pretty call?
 }
 
-func doCommand(command string) error {
+func doCommand(command string, player *Player) error {
 	input := strings.Fields(command)
 	target := ""
 	if len(input) == 0 {
@@ -147,7 +190,7 @@ func doCommand(command string) error {
 	}
 
 	if function, exists := Commands[strings.ToLower(command)]; exists {
-		function(target)
+		function(target, player)
 	} else {
 		fmt.Printf("You said wut?\n")
 	}
@@ -155,11 +198,13 @@ func doCommand(command string) error {
 }
 
 func commandLoop() error {
+	mPlayer := Player{Room: Rooms[3001]}
+	//mPlayer.Room = Rooms[3001]
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		fmt.Print("--> ")
 		line := scanner.Text()
-		err := doCommand(line)
+		err := doCommand(line, &mPlayer)
 		if err != nil {
 			fmt.Printf("ERROR: %v \n", err)
 			err = nil
@@ -267,6 +312,10 @@ func readExits(stmt *sql.Stmt) (map[int]*Room, error) {
 		}
 		exit := Exit{Rooms[toRoomId], description}
 		//fmt.Println("the exit is: ", exit)
+		//if exit.To != nil {
+		//	//why are there doors with no description? Do we still tell the user about them?
+		//	fmt.Println("there is a door leading to: ", exit.To.Name)
+		//}
 		Rooms[fromRoomId].Exits[Directions[direction]] = exit
 	}
 	return Rooms, nil
@@ -358,7 +407,6 @@ func main() {
 		tx.Commit()
 	}
 
-	mPlayer.Room = Rooms[3001]
 	//printRooms()
 	if e := readSingleRoom(db); e != nil {
 		log.Fatalf("readSingleRoom: %v", e)
