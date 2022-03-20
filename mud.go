@@ -65,9 +65,15 @@ func addCommand(command string, action func(string)) {
 
 func doLook(direction string) {
 	if direction == "" {
-		fmt.Fprintf(os.Stdout, "What are you even looking at??\n")
+		//fmt.Fprintf(os.Stdout, "What are you even looking at??\n")
+		for dir, val := range mPlayer.Room.Exits {
+			if val.Description != "" {
+				fmt.Println(DirectionLabels[dir], val.Description)
+			}
+		}
 	} else {
 		fmt.Fprintf(os.Stdout, "You looked %s\n", direction)
+		fmt.Println(mPlayer.Room.Exits[Directions[direction]].Description)
 	}
 }
 
@@ -91,7 +97,7 @@ func doNorth(s string) {
 	if len(mPlayer.Room.Exits[0].Description) == 0 {
 		fmt.Println("Illegal move")
 	} else {
-		//mPlayer.Room = mPlayer.Room.Exits[0].To
+		mPlayer.Room = mPlayer.Room.Exits[0].To
 		fmt.Printf("You move north.\n")
 		fmt.Println(mPlayer.Room.Description)
 	}
@@ -174,6 +180,7 @@ func readSingleRoom(db *sql.DB) error {
 		return fmt.Errorf("querying a room from the database: %v", err)
 	}
 
+	var room = Room{}
 	for rows.Next() {
 		var id int
 		var name, description string
@@ -181,15 +188,14 @@ func readSingleRoom(db *sql.DB) error {
 			return fmt.Errorf("reading a room from the database: %v", err)
 		}
 		//var room = Room{id, Zones[zone_id], name, description, exits}
-		room := Room{ID: id, Name: name, Description: description}
-		fmt.Println(room)
+		room = Room{ID: id, Name: name, Description: description}
 	}
 
-	fmt.Println("3001 RECALL: ", Rooms[3001])
-	fmt.Println("ID: ", Rooms[3001].ID)
+	//TODO: get rid of redundant room, implement recall
+	fmt.Println("ID: ", room.ID)
 	fmt.Println("Name: ", Rooms[3001].Name)
 	fmt.Println("Description: ", Rooms[3001].Description)
-	fmt.Println("Zone is: ", Rooms[3001].Zone)
+	//fmt.Println("Zone is: ", Rooms[3001].Zone)
 	//fmt.Println("Exits: ", Rooms[3001].Exits)
 	for dir, val := range Rooms[3001].Exits {
 		if val.Description != "" {
@@ -260,7 +266,7 @@ func readExits(stmt *sql.Stmt) (map[int]*Room, error) {
 			return nil, fmt.Errorf("reading exits from database: %v", err)
 		}
 		exit := Exit{Rooms[toRoomId], description}
-		fmt.Println("the exit is: ", exit)
+		//fmt.Println("the exit is: ", exit)
 		Rooms[fromRoomId].Exits[Directions[direction]] = exit
 	}
 	return Rooms, nil
