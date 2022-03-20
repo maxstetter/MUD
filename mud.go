@@ -18,13 +18,21 @@ var Zones = make(map[int]*Zone)
 var Rooms = make(map[int]*Room)
 var Directions = make(map[string]int)
 var mPlayer = Player{}
+var DirectionLabels = map[int]string{
+	0: "n",
+	1: "e",
+	2: "w",
+	3: "s",
+	4: "u",
+	5: "d",
+}
 
 //END GLOBAL//
 
 type Zone struct {
-	ID    int
-	Name  string
-	Rooms []*Room
+	ID   int
+	Name string
+	//Rooms []*Room
 }
 
 type Room struct {
@@ -177,6 +185,18 @@ func readSingleRoom(db *sql.DB) error {
 		fmt.Println(room)
 	}
 
+	fmt.Println("3001 RECALL: ", Rooms[3001])
+	fmt.Println("ID: ", Rooms[3001].ID)
+	fmt.Println("Name: ", Rooms[3001].Name)
+	fmt.Println("Description: ", Rooms[3001].Description)
+	fmt.Println("Zone is: ", Rooms[3001].Zone)
+	//fmt.Println("Exits: ", Rooms[3001].Exits)
+	for dir, val := range Rooms[3001].Exits {
+		if val.Description != "" {
+			fmt.Println(DirectionLabels[dir], val.Description)
+		}
+	}
+
 	return nil
 }
 
@@ -191,17 +211,17 @@ func readZones(stmt *sql.Stmt) (map[int]*Zone, error) {
 	for rows.Next() {
 		var id int
 		var name string
-		var rooms []*Room
+		//var rooms []*Room
 		if err := rows.Scan(&id, &name); err != nil {
 			return nil, fmt.Errorf("reading zones from database: %v", err)
 		}
-		zone := Zone{id, name, rooms}
-		fmt.Println(zone)
+		zone := Zone{id, name} //, rooms}
+		//fmt.Println(zone)
 		Zones[id] = &zone
 	}
-	for key, value := range Zones {
-		fmt.Println("zoneID:", key, " ", *value)
-	}
+	//for key, value := range Zones {
+	//	fmt.Println("zoneID:", key, " ", *value)
+	//}
 	return Zones, nil
 }
 
@@ -220,36 +240,39 @@ func readRooms(stmt *sql.Stmt, ZoneMap map[int]*Zone) (map[int]*Room, error) {
 		}
 		zonePointer := ZoneMap[zone_id]
 		room := Room{room_id, zonePointer, name, description, exits}
-		fmt.Println(room)
+		//fmt.Println(room)
 		Rooms[room_id] = &room
-		ZoneMap[zone_id].Rooms = []*Room{&room}
+		//ZoneMap[zone_id].Rooms = []*Room{&room}
 	}
 	return Rooms, nil
 }
 
 //The readExits() function reads in all of the exits, finds the room it leaves from and fills in the corresponding exit field of the room.``
-func readExits(stmt *sql.Stmt) error {
+func readExits(stmt *sql.Stmt) (map[int]*Room, error) {
 	rows, err := stmt.Query()
 	if err != nil {
-		return fmt.Errorf("querying exits from database: %v", err)
+		return nil, fmt.Errorf("querying exits from database: %v", err)
 	}
 	for rows.Next() {
 		var fromRoomId, toRoomId int
 		var direction, description string
 		if err := rows.Scan(&fromRoomId, &toRoomId, &direction, &description); err != nil {
-			return fmt.Errorf("reading exits from database: %v", err)
+			return nil, fmt.Errorf("reading exits from database: %v", err)
 		}
 		exit := Exit{Rooms[toRoomId], description}
+		fmt.Println("the exit is: ", exit)
 		Rooms[fromRoomId].Exits[Directions[direction]] = exit
 	}
-	return nil
+	return Rooms, nil
 }
 
 func printRooms() {
 	for key, _ := range Rooms {
+		fmt.Println("the key is: ", key)
 		fmt.Println(Rooms[key].Name)
 		fmt.Println(Rooms[key].Description)
-		fmt.Println(Rooms[key].Exits)
+		fmt.Println("Zone is: ", Rooms[key].Zone)
+		fmt.Println("Exits: ", Rooms[key].Exits)
 		for dir, val := range Rooms[key].Exits {
 			fmt.Println("dir: ", dir, " val: ", val)
 		}
@@ -276,10 +299,6 @@ func main() {
 		log.Fatalf("opening database: %v", err)
 	}
 	defer db.Close()
-
-	if e := readSingleRoom(db); e != nil {
-		log.Fatalf("readSingleRoom: %v", e)
-	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -326,14 +345,17 @@ func main() {
 	}
 	defer stmt.Close()
 
-	if err := readExits(stmt); err != nil {
+	if _, err := readExits(stmt); err != nil {
 		log.Fatalf("readExits: %v", err)
 		tx.Rollback()
 	} else {
 		tx.Commit()
 	}
 
-	printRooms()
+	//printRooms()
+	if e := readSingleRoom(db); e != nil {
+		log.Fatalf("readSingleRoom: %v", e)
+	}
 
 	fmt.Println("WELCOME TO THE DUNGEON")
 	fmt.Println("Enter: ")
