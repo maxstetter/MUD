@@ -91,7 +91,7 @@ func doNorth(s string) {
 	if len(mPlayer.Room.Exits[0].Description) == 0 {
 		fmt.Println("Illegal move")
 	} else {
-		mPlayer.Room = mPlayer.Room.Exits[0].To
+		//mPlayer.Room = mPlayer.Room.Exits[0].To
 		fmt.Printf("You move north.\n")
 		fmt.Println(mPlayer.Room.Description)
 	}
@@ -352,6 +352,7 @@ func main() {
 		tx.Commit()
 	}
 
+	mPlayer.Room = Rooms[3001]
 	//printRooms()
 	if e := readSingleRoom(db); e != nil {
 		log.Fatalf("readSingleRoom: %v", e)
