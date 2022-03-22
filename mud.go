@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strings"
 
@@ -334,7 +335,23 @@ func printRooms() {
 	}
 }
 
+func client() {
+	address := "localhost" + ":3410"
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		// handle error
+		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+	}
+	fmt.Println("asdf")
+	status, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		fmt.Printf("ERROR: %v", err)
+	}
+	fmt.Println(status)
+}
+
 func main() {
+	client()
 	Directions["n"] = 0
 	Directions["e"] = 1
 	Directions["s"] = 2
