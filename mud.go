@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/rpc"
 	"os"
 	"strings"
 
@@ -52,8 +51,18 @@ type Exit struct {
 }
 
 type Player struct {
-	Room *Room
+	Conn   net.Conn
+	Name   string
+	Room   *Room
+	Output chan string
 }
+
+type Event struct {
+	Player  *Player
+	Command string
+}
+
+//for message := range player.Output
 
 func addCommand(command string, action func(string, *Player)) {
 	for i := range command {
@@ -86,7 +95,8 @@ func doLook(direction string, p *Player) {
 
 func doLaugh(how string, p *Player) {
 	if how == "" {
-		fmt.Fprintf(os.Stdout, "hahaha\n")
+		//TODO: this is an example of printing to each player. use p.Output
+		p.Output <- "asdf"
 	} else if how == "maniacally" {
 		fmt.Fprintf(os.Stdout, "HAHAHAHA\n")
 	}
@@ -199,24 +209,33 @@ func doCommand(command string, player *Player) error {
 	return nil
 }
 
-func commandLoop() error {
-	mPlayer := Player{Room: Rooms[3001]}
-	//mPlayer.Room = Rooms[3001]
-	scanner := bufio.NewScanner(os.Stdin)
+func (p *Player) Printf(format string, a ...interface{}) {
+	msg := fmt.Sprintf(format, a...)
+	_, err := fmt.Fprint(p.Conn, msg)
+	if err != nil {
+		log.Printf("network error while printing: %v", err)
+	}
+}
+
+func handleOutput(player *Player) {
+	for message := range player.Output {
+		player.Printf("\n%s\n>", message)
+	}
+}
+
+func commandInput(player *Player, input chan Event) {
+	scanner := bufio.NewScanner(player.Conn)
 	for scanner.Scan() {
 		fmt.Print("--> ")
 		line := scanner.Text()
-		err := doCommand(line, &mPlayer)
-		if err != nil {
-			fmt.Printf("ERROR: %v \n", err)
-			err = nil
+		//check if length is zero
+		if len(line) != 0 {
+			input <- Event{
+				Player:  player,
+				Command: line,
+			}
 		}
 	}
-	if err := scanner.Err(); err != nil {
-		//fmt.Fprintln(os.Stderr, "Reading standard input:", err)
-		return fmt.Errorf("in main command loop: %v", err)
-	}
-	return nil
 }
 
 //This function opens the database, reads a single room and stores the ID, Name and Descriptions fields in a Room object, prints this object out
@@ -336,94 +355,7 @@ func printRooms() {
 	}
 }
 
-func client() {
-	address := "localhost" + ":3410"
-	conn, err := net.Dial("tcp", address)
-	if err != nil {
-		// handle error
-		fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
-	}
-	fmt.Println("asdf")
-	status, err := bufio.NewReader(conn).ReadString('\n')
-	if err != nil {
-		fmt.Printf("ERROR: %v", err)
-	}
-	fmt.Println(status)
-}
-
-type Feed struct {
-	Messages []string
-}
-
-type Nothing struct{}
-
-type handler func(*Feed)
-
-type Server chan<- handler
-
-func (s Server) Post(msg string, reply *Nothing) error {
-	finished := make(chan struct{})
-	s <- func(f *Feed) {
-		f.Messages = append(f.Messages, msg)
-		finished <- struct{}{}
-	}
-	<-finished
-	return nil
-}
-
-func (s Server) Get(count int, reply *[]string) error {
-	finished := make(chan struct{})
-	s <- func(f *Feed) {
-		if len(f.Messages) < count {
-			count = len(f.Messages)
-		}
-		*reply = make([]string, count)
-		copy(*reply, f.Messages[len(f.Messages)-count:])
-		finished <- struct{}{}
-	}
-	<-finished
-	return nil
-}
-
-func call(address string, method string, request interface{}, response interface{}) error {
-	client, err := rpc.DialHTTP("tcp", address)
-	if err != nil {
-		log.Printf("rpc.DialHTTP: %v", err)
-		return err
-	}
-	defer client.Close()
-
-	if err = client.Call(method, request, response); err != nil {
-		log.Printf("client.Call: %s: %v", method, err)
-		return err
-	}
-	return nil
-}
-
-func handleConnection(conn net.Conn) {
-	fmt.Fprintf(conn, "WELCOME TO THE DUNGEON\n")
-	fmt.Fprintf(conn, "Enter: ")
-	if err := commandLoop(); err != nil {
-		log.Fatalf("%v", err)
-	}
-}
-
-func server(address string) {
-	//main go routine that waits for incoming connections.
-	fmt.Println("Server Started.")
-
-	ln, err := net.Listen("tcp", ":3410")
-	if err != nil {
-		// handle error
-	}
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			// handle error
-		}
-		go handleConnection(conn)
-	}
-
+func databaseReader() {
 	Directions["n"] = 0
 	Directions["e"] = 1
 	Directions["s"] = 2
@@ -503,11 +435,45 @@ func server(address string) {
 
 }
 
-func main() {
-	//main server that initializes everything.
-	address := "localhost:3410"
-	server(address)
-	//var junk Nothing
-	//call(address, "Server.Post", "asdf", &junk)
-	//proably use the shell function in chord to do the command loop.
+func handleConnection(conn net.Conn, input chan Event) {
+	//To console messages
+	fmt.Println("client connected.")
+
+	player := Player{Conn: conn, Room: Rooms[3001], Output: make(chan string)}
+
+	fmt.Fprintf(conn, "WELCOME TO THE DUNGEON\n")
+	fmt.Fprintf(conn, "Enter: ")
+	go commandInput(&player, input)
+	go handleOutput(&player)
 }
+
+func manageConnections(address string, input chan Event) {
+	//main go routine that waits for incoming connections.
+	fmt.Println("Server Started.")
+
+	ln, err := net.Listen("tcp", ":3410")
+	if err != nil {
+		// handle error
+	}
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			// handle error
+		}
+		handleConnection(conn, input)
+	}
+}
+
+func main() {
+	databaseReader()
+	input := make(chan Event)
+
+	//main routine that initializes everything.
+	address := "localhost:3410"
+	go manageConnections(address, input)
+	for action := range input {
+		doCommand(action.Command, action.Player)
+	}
+}
+
+//TODO: replace all of the prints with printing to the player.
