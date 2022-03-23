@@ -234,35 +234,23 @@ func commandInput(player *Player, input chan Event) {
 		line := scanner.Text()
 		//check if length is zero
 		if len(line) != 0 {
+			//if player doesn't have a name, ask for their name.
 			if player.Name == "" {
 				player.Name = line
-			}
-			input <- Event{
-				Player:  player,
-				Command: line,
+				fmt.Fprintf(player.Conn, "Welcome, "+player.Name+"\n")
+				fmt.Fprintf(player.Conn, "Enter commands below to start.\n")
+				fmt.Printf("player, " + player.Name + ", has connected.\n")
+			} else {
+				input <- Event{
+					Player:  player,
+					Command: line,
+				}
 			}
 		}
 	}
 }
 
 //TODO: ask a new connection for their name and save it.
-func handleName(player *Player) {
-	var name string
-
-	fmt.Scanf("%s", &name)
-	player.Name = name
-	//	scanner := bufio.NewScanner(player.Conn)
-	//	for scanner.Scan() {
-	//		line := scanner.Text()
-	//check if length is zero
-	//		if len(line) != 0 {
-	//			player.Name = line
-	//			player.Output <- "ASDFASDF"
-	//			break
-	//		}
-	//	}
-	player.Output <- "WELCOME, " + player.Name
-}
 
 //This function opens the database, reads a single room and stores the ID, Name and Descriptions fields in a Room object, prints this object out
 func readSingleRoom(db *sql.DB) error {
@@ -453,12 +441,6 @@ func databaseReader() {
 	} else {
 		tx.Commit()
 	}
-
-	//printRooms()
-	//	if e := readSingleRoom(db); e != nil {
-	//		log.Fatalf("readSingleRoom: %v", e)
-	//	}
-
 }
 
 func handleConnection(conn net.Conn, input chan Event) {
@@ -467,10 +449,7 @@ func handleConnection(conn net.Conn, input chan Event) {
 
 	player := Player{Conn: conn, Room: Rooms[3001], Output: make(chan string)}
 
-	fmt.Fprintf(conn, "WELCOME TO THE DUNGEON\n")
 	fmt.Fprintf(conn, "Name? \n")
-	//fmt.Scanf("%s", player.Name)
-	//	handleName(&player)
 	go commandInput(&player, input)
 	go handleOutput(&player)
 }
