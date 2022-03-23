@@ -170,6 +170,10 @@ func doRecall(s string, p *Player) {
 	p.Output <- p.Room.Description
 }
 
+func doName(s string, p *Player) {
+	p.Output <- "ASDF boi " + p.Name
+}
+
 //initialize the commands
 func initialize() {
 	addCommand("look", doLook)
@@ -182,6 +186,7 @@ func initialize() {
 	addCommand("recall", doRecall)
 	addCommand("up", doUp)
 	addCommand("down", doDown)
+	addCommand("name", doName)
 	//up, down, say, tell, shout, pretty call?
 }
 
@@ -229,12 +234,34 @@ func commandInput(player *Player, input chan Event) {
 		line := scanner.Text()
 		//check if length is zero
 		if len(line) != 0 {
+			if player.Name == "" {
+				player.Name = line
+			}
 			input <- Event{
 				Player:  player,
 				Command: line,
 			}
 		}
 	}
+}
+
+//TODO: ask a new connection for their name and save it.
+func handleName(player *Player) {
+	var name string
+
+	fmt.Scanf("%s", &name)
+	player.Name = name
+	//	scanner := bufio.NewScanner(player.Conn)
+	//	for scanner.Scan() {
+	//		line := scanner.Text()
+	//check if length is zero
+	//		if len(line) != 0 {
+	//			player.Name = line
+	//			player.Output <- "ASDFASDF"
+	//			break
+	//		}
+	//	}
+	player.Output <- "WELCOME, " + player.Name
 }
 
 //This function opens the database, reads a single room and stores the ID, Name and Descriptions fields in a Room object, prints this object out
@@ -441,7 +468,9 @@ func handleConnection(conn net.Conn, input chan Event) {
 	player := Player{Conn: conn, Room: Rooms[3001], Output: make(chan string)}
 
 	fmt.Fprintf(conn, "WELCOME TO THE DUNGEON\n")
-	fmt.Fprintf(conn, "Enter: ")
+	fmt.Fprintf(conn, "Name? \n")
+	//fmt.Scanf("%s", player.Name)
+	//	handleName(&player)
 	go commandInput(&player, input)
 	go handleOutput(&player)
 }
