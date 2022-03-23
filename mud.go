@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/rpc"
 	"os"
 	"strings"
 
@@ -350,8 +351,79 @@ func client() {
 	fmt.Println(status)
 }
 
-func main() {
-	client()
+type Feed struct {
+	Messages []string
+}
+
+type Nothing struct{}
+
+type handler func(*Feed)
+
+type Server chan<- handler
+
+func (s Server) Post(msg string, reply *Nothing) error {
+	finished := make(chan struct{})
+	s <- func(f *Feed) {
+		f.Messages = append(f.Messages, msg)
+		finished <- struct{}{}
+	}
+	<-finished
+	return nil
+}
+
+func (s Server) Get(count int, reply *[]string) error {
+	finished := make(chan struct{})
+	s <- func(f *Feed) {
+		if len(f.Messages) < count {
+			count = len(f.Messages)
+		}
+		*reply = make([]string, count)
+		copy(*reply, f.Messages[len(f.Messages)-count:])
+		finished <- struct{}{}
+	}
+	<-finished
+	return nil
+}
+
+func call(address string, method string, request interface{}, response interface{}) error {
+	client, err := rpc.DialHTTP("tcp", address)
+	if err != nil {
+		log.Printf("rpc.DialHTTP: %v", err)
+		return err
+	}
+	defer client.Close()
+
+	if err = client.Call(method, request, response); err != nil {
+		log.Printf("client.Call: %s: %v", method, err)
+		return err
+	}
+	return nil
+}
+
+func handleConnection(conn net.Conn) {
+	fmt.Fprintf(conn, "WELCOME TO THE DUNGEON\n")
+	fmt.Fprintf(conn, "Enter: ")
+	if err := commandLoop(); err != nil {
+		log.Fatalf("%v", err)
+	}
+}
+
+func server(address string) {
+	//main go routine that waits for incoming connections.
+	fmt.Println("Server Started.")
+
+	ln, err := net.Listen("tcp", ":3410")
+	if err != nil {
+		// handle error
+	}
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			// handle error
+		}
+		go handleConnection(conn)
+	}
+
 	Directions["n"] = 0
 	Directions["e"] = 1
 	Directions["s"] = 2
@@ -429,9 +501,13 @@ func main() {
 		log.Fatalf("readSingleRoom: %v", e)
 	}
 
-	fmt.Println("WELCOME TO THE DUNGEON")
-	fmt.Println("Enter: ")
-	if err := commandLoop(); err != nil {
-		log.Fatalf("%v", err)
-	}
+}
+
+func main() {
+	//main server that initializes everything.
+	address := "localhost:3410"
+	server(address)
+	//var junk Nothing
+	//call(address, "Server.Post", "asdf", &junk)
+	//proably use the shell function in chord to do the command loop.
 }
