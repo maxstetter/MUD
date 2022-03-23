@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -77,18 +76,19 @@ func addCommand(command string, action func(string, *Player)) {
 
 func doLook(direction string, p *Player) {
 	if direction == "" {
-		//fmt.Fprintf(os.Stdout, "What are you even looking at??\n")
 		for dir, val := range p.Room.Exits {
 			if val.Description != "" {
-				fmt.Println(DirectionLabels[dir], val.Description)
+				p.Output <- DirectionLabels[dir] + " " + val.Description
 			}
 		}
 	} else {
-		fmt.Fprintf(os.Stdout, "You looked %s\n", direction)
+		p.Output <- "You looked " + direction
+		//fmt.Fprintf(os.Stdout, "You looked %s\n", direction)
 		if p.Room.Exits[Directions[direction]].Description == "" {
-			fmt.Println("There is nothing to look at in this direction")
+			p.Output <- "There is nothing to look at in this direction."
 		} else {
-			fmt.Println(p.Room.Exits[Directions[direction]].Description)
+			p.Output <- p.Room.Exits[Directions[direction]].Description
+			//fmt.Println(p.Room.Exits[Directions[direction]].Description)
 		}
 	}
 }
@@ -96,78 +96,78 @@ func doLook(direction string, p *Player) {
 func doLaugh(how string, p *Player) {
 	if how == "" {
 		//TODO: this is an example of printing to each player. use p.Output
-		p.Output <- "asdf"
+		p.Output <- "teehee"
 	} else if how == "maniacally" {
-		fmt.Fprintf(os.Stdout, "HAHAHAHA\n")
+		p.Output <- "HAHAHA"
 	}
 }
 
 func doSmile(s string, p *Player) {
-	fmt.Printf("You smile happily.\n")
+	p.Output <- "You smile happily."
 }
 
 func doSouth(s string, p *Player) {
 	if len(p.Room.Exits[2].Description) == 0 {
-		fmt.Println("Illegal move")
+		p.Output <- "Illegal move."
 	} else {
 		p.Room = p.Room.Exits[2].To
-		fmt.Printf("You move south.\n")
-		fmt.Println(p.Room.Description)
+		p.Output <- "You move South."
+		p.Output <- p.Room.Description
 	}
 }
 
 func doNorth(s string, p *Player) {
 	if len(p.Room.Exits[0].Description) == 0 {
-		fmt.Println("Illegal move")
+		p.Output <- "Illegal move."
 	} else {
 		p.Room = p.Room.Exits[0].To
-		fmt.Printf("You move north.\n")
-		fmt.Println(p.Room.Description)
+		p.Output <- "You move North."
+		p.Output <- p.Room.Description
 	}
 }
 
 func doEast(s string, p *Player) {
 	if len(p.Room.Exits[1].Description) == 0 {
-		fmt.Println("Illegal move")
+		p.Output <- "Illegal move."
 	} else {
 		p.Room = p.Room.Exits[1].To
-		fmt.Printf("You move east.\n")
-		fmt.Println(p.Room.Description)
+		p.Output <- "You move East."
+		p.Output <- p.Room.Description
 	}
 }
 
 func doWest(s string, p *Player) {
 	if len(p.Room.Exits[3].Description) == 0 {
-		fmt.Println("Illegal move")
+		p.Output <- "Illegal move."
 	} else {
 		p.Room = p.Room.Exits[3].To
-		fmt.Printf("You move west.\n")
-		fmt.Println(p.Room.Description)
+		p.Output <- "You move West."
+		p.Output <- p.Room.Description
 	}
 }
 func doUp(s string, p *Player) {
 	if len(p.Room.Exits[4].Description) == 0 {
-		fmt.Println("Illegal move")
+		p.Output <- "Illegal move."
 	} else {
 		p.Room = p.Room.Exits[4].To
-		fmt.Printf("You move up.\n")
-		fmt.Println(p.Room.Description)
+		p.Output <- "You move up."
+		p.Output <- p.Room.Description
 	}
 }
 func doDown(s string, p *Player) {
 	if len(p.Room.Exits[5].Description) == 0 {
-		fmt.Println("Illegal move")
+		p.Output <- "Illegal move."
 	} else {
 		p.Room = p.Room.Exits[5].To
-		fmt.Printf("You move down.\n")
-		fmt.Println(p.Room.Description)
+		p.Output <- "You move down."
+		p.Output <- p.Room.Description
 	}
 }
 
 func doRecall(s string, p *Player) {
 	p.Room = Rooms[3001]
-	fmt.Printf("You return to the beginning\n")
-	fmt.Printf(p.Room.Description)
+	p.Output <- "You return to the beginning"
+	p.Output <- p.Room.Description
 }
 
 //initialize the commands
@@ -204,7 +204,7 @@ func doCommand(command string, player *Player) error {
 	if function, exists := Commands[strings.ToLower(command)]; exists {
 		function(target, player)
 	} else {
-		fmt.Printf("You said wut?\n")
+		player.Output <- "Invalid command."
 	}
 	return nil
 }
@@ -226,7 +226,6 @@ func handleOutput(player *Player) {
 func commandInput(player *Player, input chan Event) {
 	scanner := bufio.NewScanner(player.Conn)
 	for scanner.Scan() {
-		fmt.Print("--> ")
 		line := scanner.Text()
 		//check if length is zero
 		if len(line) != 0 {
@@ -246,7 +245,7 @@ func readSingleRoom(db *sql.DB) error {
 		return fmt.Errorf("querying a room from the database: %v", err)
 	}
 
-	var room = Room{}
+	//	var room = Room{}
 	for rows.Next() {
 		var id int
 		var name, description string
@@ -254,13 +253,13 @@ func readSingleRoom(db *sql.DB) error {
 			return fmt.Errorf("reading a room from the database: %v", err)
 		}
 		//var room = Room{id, Zones[zone_id], name, description, exits}
-		room = Room{ID: id, Name: name, Description: description}
+		//		room = Room{ID: id, Name: name, Description: description}
 	}
 
 	//TODO: get rid of redundant room, implement recall
-	fmt.Println("ID: ", room.ID)
-	fmt.Println("Name: ", Rooms[3001].Name)
-	fmt.Println("Description: ", Rooms[3001].Description)
+	//fmt.Println("ID: ", room.ID)
+	//fmt.Println("Name: ", Rooms[3001].Name)
+	//fmt.Println("Description: ", Rooms[3001].Description)
 	//fmt.Println("Zone is: ", Rooms[3001].Zone)
 	//fmt.Println("Exits: ", Rooms[3001].Exits)
 	for dir, val := range Rooms[3001].Exits {
@@ -429,9 +428,9 @@ func databaseReader() {
 	}
 
 	//printRooms()
-	if e := readSingleRoom(db); e != nil {
-		log.Fatalf("readSingleRoom: %v", e)
-	}
+	//	if e := readSingleRoom(db); e != nil {
+	//		log.Fatalf("readSingleRoom: %v", e)
+	//	}
 
 }
 
@@ -475,5 +474,3 @@ func main() {
 		doCommand(action.Command, action.Player)
 	}
 }
-
-//TODO: replace all of the prints with printing to the player.
