@@ -342,40 +342,6 @@ func commandInput(player *Player, input chan Event) {
 
 //TODO: ask a new connection for their name and save it.
 
-//This function opens the database, reads a single room and stores the ID, Name and Descriptions fields in a Room object, prints this object out
-func readSingleRoom(db *sql.DB) error {
-	//select id, zone_id, name, description from rooms where id = 3001;
-	rows, err := db.Query("SELECT id, name, description FROM rooms where ID = 3001")
-	if err != nil {
-		return fmt.Errorf("querying a room from the database: %v", err)
-	}
-
-	//	var room = Room{}
-	for rows.Next() {
-		var id int
-		var name, description string
-		if err := rows.Scan(&id, &name, &description); err != nil {
-			return fmt.Errorf("reading a room from the database: %v", err)
-		}
-		//var room = Room{id, Zones[zone_id], name, description, exits}
-		//		room = Room{ID: id, Name: name, Description: description}
-	}
-
-	//TODO: get rid of redundant room, implement recall
-	//fmt.Println("ID: ", room.ID)
-	//fmt.Println("Name: ", Rooms[3001].Name)
-	//fmt.Println("Description: ", Rooms[3001].Description)
-	//fmt.Println("Zone is: ", Rooms[3001].Zone)
-	//fmt.Println("Exits: ", Rooms[3001].Exits)
-	for dir, val := range Rooms[3001].Exits {
-		if val.Description != "" {
-			fmt.Println(DirectionLabels[dir], val.Description)
-		}
-	}
-
-	return nil
-}
-
 //readZones() function reads all of the zones. Collects all of the zones into a map where the keys are zone IDs and the values are Zone pointers. Prints them all out.
 func readZones(stmt *sql.Stmt) (map[int]*Zone, error) {
 	//rows, err := db.Query("SELECT * FROM zones")
@@ -444,19 +410,6 @@ func readExits(stmt *sql.Stmt) (map[int]*Room, error) {
 		Rooms[fromRoomId].Exits[Directions[direction]] = exit
 	}
 	return Rooms, nil
-}
-
-func printRooms() {
-	for key, _ := range Rooms {
-		fmt.Println("the key is: ", key)
-		fmt.Println(Rooms[key].Name)
-		fmt.Println(Rooms[key].Description)
-		fmt.Println("Zone is: ", Rooms[key].Zone)
-		fmt.Println("Exits: ", Rooms[key].Exits)
-		for dir, val := range Rooms[key].Exits {
-			fmt.Println("dir: ", dir, " val: ", val)
-		}
-	}
 }
 
 func databaseReader() {
