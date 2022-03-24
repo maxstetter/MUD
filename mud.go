@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -277,67 +276,22 @@ func doCommand(command string, player *Player) error {
 	input := strings.Fields(command)
 	target := ""
 	if len(input) == 0 {
-		return errors.New("empty input, try again")
-	} else if len(input) >= 2 {
-		command = input[0]
+	} else if len(input) >= 1 {
 		for i := 1; i < len(input); i++ {
+			command = input[0]
 			if i == len(input)-1 {
 				target += input[i]
 			} else {
 				target += input[i] + " "
 			}
 		}
-	}
-
-	if function, exists := Commands[strings.ToLower(command)]; exists {
-		function(target, player)
-	} else {
-		player.Output <- "Invalid command."
-	}
-	return nil
-}
-
-func (p *Player) Printf(format string, a ...interface{}) {
-	msg := fmt.Sprintf(format, a...)
-	_, err := fmt.Fprint(p.Conn, msg)
-	if err != nil {
-		log.Printf("network error while printing: %v", err)
-	}
-}
-
-func handleOutput(player *Player) {
-	//TODO move this maybe?
-	if player.Output == nil {
-		player.Conn.Close()
-		fmt.Println("ASDF CLOSED!!!!")
-	}
-	for message := range player.Output {
-		player.Printf("\n%s\n", message)
-	}
-}
-
-func commandInput(player *Player, input chan Event) {
-	scanner := bufio.NewScanner(player.Conn)
-	for scanner.Scan() {
-		line := scanner.Text()
-		//check if length is zero
-		if len(line) != 0 {
-			//if player doesn't have a name, ask for their name.
-			if player.Name == "" {
-				player.Name = line
-				fmt.Fprintf(player.Conn, "Welcome, "+player.Name+"\n")
-				//fmt.Fprintf(player.Conn, "Enter commands below to start.\n")
-				fmt.Printf("player, " + player.Name + ", has connected.\n")
-				Players[player.Name] = player
-				input <- Event{Player: player, Command: "where"}
-			} else {
-				input <- Event{
-					Player:  player,
-					Command: line,
-				}
-			}
+		if function, exists := Commands[strings.ToLower(command)]; exists {
+			function(target, player)
+		} else {
+			player.Output <- "Invalid command."
 		}
 	}
+	return nil
 }
 
 //TODO: ask a new connection for their name and save it.
@@ -486,6 +440,49 @@ func databaseReader() {
 	}
 }
 
+func (p *Player) Printf(format string, a ...interface{}) {
+	msg := fmt.Sprintf(format, a...)
+	_, err := fmt.Fprint(p.Conn, msg)
+	if err != nil {
+		log.Printf("network error while printing: %v", err)
+	}
+}
+
+func handleOutput(player *Player) {
+	//TODO move this maybe?
+	if player.Output == nil {
+		player.Conn.Close()
+		fmt.Println("ASDF CLOSED!!!!")
+	}
+	for message := range player.Output {
+		player.Printf("\n%s\n", message)
+	}
+}
+
+func commandInput(player *Player, input chan Event) {
+	scanner := bufio.NewScanner(player.Conn)
+	for scanner.Scan() {
+		line := scanner.Text()
+		//check if length is zero
+		if len(line) != 0 {
+			//if player doesn't have a name, ask for their name.
+			if player.Name == "" {
+				player.Name = line
+				fmt.Fprintf(player.Conn, "Welcome, "+player.Name+"\n")
+				//fmt.Fprintf(player.Conn, "Enter commands below to start.\n")
+				fmt.Printf("player, " + player.Name + ", has connected.\n")
+				Players[player.Name] = player
+				input <- Event{Player: player, Command: "where"}
+			} else {
+				input <- Event{
+					Player:  player,
+					Command: line,
+				}
+			}
+		}
+	}
+}
+
 func handleConnection(conn net.Conn, input chan Event) {
 	//To console messages
 	fmt.Println("client connected.")
@@ -510,7 +507,7 @@ func manageConnections(address string, input chan Event) {
 		if err != nil {
 			// handle error
 		}
-		handleConnection(conn, input)
+		go handleConnection(conn, input)
 	}
 }
 
