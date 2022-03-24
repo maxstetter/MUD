@@ -172,10 +172,65 @@ func doName(s string, p *Player) {
 	p.Output <- "Your name is " + p.Name
 }
 
+//Sends a message to everyone in the server.
 func doGossip(s string, p *Player) {
 	original := p.Name
 	for _, player := range Players {
 		player.Output <- original + " is gossiping: " + s
+	}
+}
+
+//Sends a message to everyone in the same room.
+func doSay(s string, p *Player) {
+	original := p.Name
+	for _, player := range Players {
+		if player.Room == p.Room {
+			player.Output <- original + " Says: " + s
+		}
+	}
+}
+
+//Sends a message to everyone in the same zone
+func doShout(s string, p *Player) {
+	original := p.Name
+	for _, player := range Players {
+		if player.Room.Zone == p.Room.Zone {
+			player.Output <- original + " Shouts: " + s + "!"
+		}
+	}
+}
+
+//Sends a smelly message to everyone in the same room.
+func doFart(s string, p *Player) {
+	for _, player := range Players {
+		if player.Room == p.Room {
+			player.Output <- "Something smells stinky."
+		}
+	}
+}
+
+//Sends a message to target regardless of location.
+func doWhisper(s string, p *Player) {
+	player_name := p.Name
+	raw := strings.Fields(s)
+	target := raw[0]
+	message := ""
+	if target == "" {
+		p.Output <- "Whisper to who?"
+	} else {
+		_, nameexists := Players[target]
+		if nameexists {
+			for i := 1; i < len(raw); i++ {
+				message += raw[i] + " "
+			}
+			for _, player := range Players {
+				if player.Name == target {
+					player.Output <- player_name + " whispers: " + message
+				}
+			}
+		} else {
+			p.Output <- "That player does not exist."
+		}
 	}
 }
 
@@ -184,6 +239,9 @@ func doQuit(s string, p *Player) {
 	close(p.Output)
 	p.Output = nil
 	p.Conn.Close()
+	for _, player := range Players {
+		player.Output <- player_name + " has disconnected."
+	}
 	fmt.Printf("%s Disconnected.\n", player_name)
 }
 
@@ -202,6 +260,10 @@ func initialize() {
 	addCommand("name", doName)
 	addCommand("quit", doQuit)
 	addCommand("gossip", doGossip)
+	addCommand("say", doSay)
+	addCommand("shout", doShout)
+	addCommand("fart", doFart)
+	addCommand("whisper", doWhisper)
 	//up, down, say, tell, shout, pretty call?
 }
 
