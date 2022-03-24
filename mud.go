@@ -245,6 +245,11 @@ func doQuit(s string, p *Player) {
 	fmt.Printf("%s Disconnected.\n", player_name)
 }
 
+func doWhere(s string, p *Player) {
+	p.Output <- p.Room.Name
+	p.Output <- p.Room.Description
+}
+
 //initialize the commands
 func initialize() {
 	addCommand("look", doLook)
@@ -264,6 +269,7 @@ func initialize() {
 	addCommand("shout", doShout)
 	addCommand("fart", doFart)
 	addCommand("whisper", doWhisper)
+	addCommand("where", doWhere)
 	//up, down, say, tell, shout, pretty call?
 }
 
@@ -306,7 +312,7 @@ func handleOutput(player *Player) {
 		fmt.Println("ASDF CLOSED!!!!")
 	}
 	for message := range player.Output {
-		player.Printf("\n%s\n>", message)
+		player.Printf("\n%s\n", message)
 	}
 }
 
@@ -320,9 +326,10 @@ func commandInput(player *Player, input chan Event) {
 			if player.Name == "" {
 				player.Name = line
 				fmt.Fprintf(player.Conn, "Welcome, "+player.Name+"\n")
-				fmt.Fprintf(player.Conn, "Enter commands below to start.\n")
+				//fmt.Fprintf(player.Conn, "Enter commands below to start.\n")
 				fmt.Printf("player, " + player.Name + ", has connected.\n")
 				Players[player.Name] = player
+				input <- Event{Player: player, Command: "where"}
 			} else {
 				input <- Event{
 					Player:  player,
