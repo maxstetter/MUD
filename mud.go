@@ -179,8 +179,7 @@ func doQuit(s string, p *Player) {
 	player_name := p.Name
 	close(p.Output)
 	p.Output = nil
-	//p.Conn.Close()
-	fmt.Printf("%v", p.Output)
+	p.Conn.Close()
 	fmt.Printf("%s Disconnected.\n", player_name)
 }
 
