@@ -61,8 +61,6 @@ type Event struct {
 	Command string
 }
 
-//for message := range player.Output
-
 func addCommand(command string, action func(string, *Player)) {
 	for i := range command {
 		if i == 0 {
@@ -249,7 +247,6 @@ func doWhere(s string, p *Player) {
 	p.Output <- p.Room.Description
 }
 
-//initialize the commands
 func initialize() {
 	addCommand("look", doLook)
 	addCommand("laugh", doLaugh)
@@ -269,7 +266,6 @@ func initialize() {
 	addCommand("fart", doFart)
 	addCommand("whisper", doWhisper)
 	addCommand("where", doWhere)
-	//up, down, say, tell, shout, pretty call?
 }
 
 func doCommand(command string, player *Player) error {
@@ -294,11 +290,7 @@ func doCommand(command string, player *Player) error {
 	return nil
 }
 
-//TODO: ask a new connection for their name and save it.
-
-//readZones() function reads all of the zones. Collects all of the zones into a map where the keys are zone IDs and the values are Zone pointers. Prints them all out.
 func readZones(stmt *sql.Stmt) (map[int]*Zone, error) {
-	//rows, err := db.Query("SELECT * FROM zones")
 	rows, err := stmt.Query()
 	if err != nil {
 		return nil, fmt.Errorf("querying zones from database: %v", err)
@@ -307,21 +299,15 @@ func readZones(stmt *sql.Stmt) (map[int]*Zone, error) {
 	for rows.Next() {
 		var id int
 		var name string
-		//var rooms []*Room
 		if err := rows.Scan(&id, &name); err != nil {
 			return nil, fmt.Errorf("reading zones from database: %v", err)
 		}
-		zone := Zone{id, name} //, rooms}
-		//fmt.Println(zone)
+		zone := Zone{id, name}
 		Zones[id] = &zone
 	}
-	//for key, value := range Zones {
-	//	fmt.Println("zoneID:", key, " ", *value)
-	//}
 	return Zones, nil
 }
 
-//The readRooms function reads in all of the rooms. It accepts an open transaction as a paramter and returns a map from IDs to Room pointers. In addition, have it accept the map of zones as a parameter. When you get a zone ID from the database, use it to find the corresponding Zone pointer and store it in the Room object.
 func readRooms(stmt *sql.Stmt, ZoneMap map[int]*Zone) (map[int]*Room, error) {
 	rows, err := stmt.Query()
 	if err != nil {
@@ -336,14 +322,12 @@ func readRooms(stmt *sql.Stmt, ZoneMap map[int]*Zone) (map[int]*Room, error) {
 		}
 		zonePointer := ZoneMap[zone_id]
 		room := Room{room_id, zonePointer, name, description, exits}
-		//fmt.Println(room)
 		Rooms[room_id] = &room
 		//ZoneMap[zone_id].Rooms = []*Room{&room}
 	}
 	return Rooms, nil
 }
 
-//The readExits() function reads in all of the exits, finds the room it leaves from and fills in the corresponding exit field of the room.``
 func readExits(stmt *sql.Stmt) (map[int]*Room, error) {
 	rows, err := stmt.Query()
 	if err != nil {
@@ -356,11 +340,6 @@ func readExits(stmt *sql.Stmt) (map[int]*Room, error) {
 			return nil, fmt.Errorf("reading exits from database: %v", err)
 		}
 		exit := Exit{Rooms[toRoomId], description}
-		//fmt.Println("the exit is: ", exit)
-		//if exit.To != nil {
-		//	//why are there doors with no description? Do we still tell the user about them?
-		//	fmt.Println("there is a door leading to: ", exit.To.Name)
-		//}
 		Rooms[fromRoomId].Exits[Directions[direction]] = exit
 	}
 	return Rooms, nil
