@@ -84,19 +84,16 @@ func doLook(direction string, p *Player) {
 		}
 	} else {
 		p.Output <- "You looked " + direction
-		//fmt.Fprintf(os.Stdout, "You looked %s\n", direction)
 		if p.Room.Exits[Directions[direction]].Description == "" {
 			p.Output <- "There is nothing to look at in this direction."
 		} else {
 			p.Output <- p.Room.Exits[Directions[direction]].Description
-			//fmt.Println(p.Room.Exits[Directions[direction]].Description)
 		}
 	}
 }
 
 func doLaugh(how string, p *Player) {
 	if how == "" {
-		//TODO: this is an example of printing to each player. use p.Output
 		p.Output <- "teehee"
 	} else if how == "maniacally" {
 		p.Output <- "HAHAHA"
@@ -175,6 +172,13 @@ func doName(s string, p *Player) {
 	p.Output <- "Your name is " + p.Name
 }
 
+func doGossip(s string, p *Player) {
+	original := p.Name
+	for _, player := range Players {
+		player.Output <- original + " is gossiping: " + s
+	}
+}
+
 func doQuit(s string, p *Player) {
 	player_name := p.Name
 	close(p.Output)
@@ -197,6 +201,7 @@ func initialize() {
 	addCommand("down", doDown)
 	addCommand("name", doName)
 	addCommand("quit", doQuit)
+	addCommand("gossip", doGossip)
 	//up, down, say, tell, shout, pretty call?
 }
 
