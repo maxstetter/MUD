@@ -500,12 +500,12 @@ func manageConnections(address string, input chan Event) {
 
 	ln, err := net.Listen("tcp", ":3410")
 	if err != nil {
-		// handle error
+		log.Fatalf("Listen error: %v", err)
 	}
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			// handle error
+			log.Fatalf("Listen error: %v", err)
 		}
 		go handleConnection(conn, input)
 	}
