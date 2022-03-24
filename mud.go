@@ -17,6 +17,7 @@ var Commands = make(map[string]func(string, *Player))
 var Zones = make(map[int]*Zone)
 var Rooms = make(map[int]*Room)
 var Directions = make(map[string]int)
+var Players = make(map[string]*Player)
 
 //var mPlayer = Player{}
 var DirectionLabels = map[int]string{
@@ -171,7 +172,16 @@ func doRecall(s string, p *Player) {
 }
 
 func doName(s string, p *Player) {
-	p.Output <- "ASDF boi " + p.Name
+	p.Output <- "Your name is " + p.Name
+}
+
+func doQuit(s string, p *Player) {
+	player_name := p.Name
+	close(p.Output)
+	p.Output = nil
+	//p.Conn.Close()
+	fmt.Printf("%v", p.Output)
+	fmt.Printf("%s Disconnected.\n", player_name)
 }
 
 //initialize the commands
@@ -187,6 +197,7 @@ func initialize() {
 	addCommand("up", doUp)
 	addCommand("down", doDown)
 	addCommand("name", doName)
+	addCommand("quit", doQuit)
 	//up, down, say, tell, shout, pretty call?
 }
 
@@ -223,6 +234,11 @@ func (p *Player) Printf(format string, a ...interface{}) {
 }
 
 func handleOutput(player *Player) {
+	//TODO move this maybe?
+	if player.Output == nil {
+		player.Conn.Close()
+		fmt.Println("ASDF CLOSED!!!!")
+	}
 	for message := range player.Output {
 		player.Printf("\n%s\n>", message)
 	}
@@ -240,6 +256,7 @@ func commandInput(player *Player, input chan Event) {
 				fmt.Fprintf(player.Conn, "Welcome, "+player.Name+"\n")
 				fmt.Fprintf(player.Conn, "Enter commands below to start.\n")
 				fmt.Printf("player, " + player.Name + ", has connected.\n")
+				Players[player.Name] = player
 			} else {
 				input <- Event{
 					Player:  player,
